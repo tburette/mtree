@@ -5,8 +5,6 @@
 #split: handle case where a node had no parent but now has one.
 # Must compute and assign d(Oj, Op)
 
-#from abc import ABCMeta, abstractmethod, abstractproperty
-
 __all__ = ['MTree']
 
 #TODO: node size : 32 is arbitrary. Define a reasonable default value
@@ -33,21 +31,6 @@ class MTree():
         self.root.add(obj)
         self.size += 1
 
-#TODO: remove Node and use duck typing instead? No one will need to perform
-# inspection on these class anyway as they are private
-'''
-class Node():
-    __metaclass__ = ABCMeta
-    """Abstract class. Base class of Leaf and internal node"""
-    def __init__(self, d, maxNodeSize, parent=None):
-        self.d = d
-        self.maxNodeSize = maxNodeSize
-        self.parent = parent
-
-    @abstractmethod
-    def isinternal(self):
-        abstract
-'''
 
 class LeafEntry():
     """
@@ -86,16 +69,18 @@ class Leaf(Node):
         self.parent = parent
         self.entries = entries
 
-    def hasparent(self):
-        return bool(self.parent)
-    
     def isinternal(self):
         return false
 
+    def __len__(self):
+        return len(entries)
+
     def add(self, obj):
-        raise Exception('Not yet implemented')
-        if(len(entries) < maxNodeSize):
-            pass
+        if(len(self) < maxNodeSize):
+            distance_to_parent=self.d(obj, parent) if parent else None
+            entries.add(LeafEntry(obj,distance_to_parent))
+                                  
+            
             
 
     
@@ -107,8 +92,5 @@ class InternalNode(Node):
         self.parent = parent
         self.entries = entries
 
-    def hasparent(self):
-        return bool(self.parent)
-    
     def isinternal(self):
         return false
