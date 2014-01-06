@@ -92,5 +92,8 @@ class InternalNode(Node):
         self.parent = parent
         self.entries = entries
 
+    def __len__(self):
+        return len(entries)
+        
     def isinternal(self):
-        return false
+        return true
