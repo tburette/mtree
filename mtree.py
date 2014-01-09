@@ -4,9 +4,12 @@
 # other can be added later
 #split: handle case where a node had no parent but now has one.
 # Must compute and assign d(Oj, Op)
-#TODO: specify in docstring exactly what can return d :
+#TODO: specify in docstring exactly what d can return :
 # (something that work like) a number
-#TODO: specify in docstring what exactly an obj can be (anything..)
+#TODO: specify in docstring what exactly an obj can be (anything!, only use d)
+#talk about duplicates in doc (same object or object with d(x, y) = 0).
+# Do not check and allow duplicates in the tree.
+#  verify it is true + say so in docstring
 
 __all__ = ['MTree']
 
@@ -50,7 +53,7 @@ class InternalNodeEntry():
     The internal nodes of the M-tree contain a list of instances of this class
 
     The distance to the parent is None if the leaf in which this entry is
-    stored has no parent
+    stored has no parent.
     """
     def __init__(self,
                  obj,
@@ -109,9 +112,7 @@ class InternalNode(Node):
         return true
 
     def add(self, obj):
-        #V1
-        #require to define eq and hash in InternalNodeEntry
-        #Why not use the default hash?
+        #Use Entry as key to dict even though eq and hash haven't been defined
         distance = {}
         for e in self.entries:
             distance[e] = d(obj, e)
