@@ -6,10 +6,13 @@
 # Must compute and assign d(Oj, Op)
 #TODO: specify in docstring exactly what d can return :
 # (something that work like) a number
-#TODO: specify in docstring what exactly an obj can be (anything!, only use d)
+#TODO: specify in docstring what exactly an obj can be
+# anything that can be used by the d provided.
+# never do anything with obj except store it and use it as param to d
 #talk about duplicates in doc (same object or object with d(x, y) = 0).
 # Do not check and allow duplicates in the tree.
 #  verify it is true + say so in docstring
+#add a nearest neighbor function (that is implemented in term of k-NN)
 
 __all__ = ['MTree']
 
@@ -40,7 +43,8 @@ class MTree():
 
 class LeafEntry():
     """
-    The leafs of the M-tree contain a list of instances of this class
+    The leafs of the M-tree contain a list of instances of this class.
+    Each instance represents an object that is stored by this tree
 
     The distance to the parent is None if the leaf in which this entry is
     stored has no parent"""
@@ -50,7 +54,8 @@ class LeafEntry():
 
 class InternalNodeEntry():
     """
-    The internal nodes of the M-tree contain a list of instances of this class
+    The internal nodes of the M-tree contain a list of instances of this class.
+    Each instance represents a routing object.
 
     The distance to the parent is None if the leaf in which this entry is
     stored has no parent.
@@ -74,9 +79,6 @@ class Leaf(Node):
         self.max_node_size = max_node_size
         self.parent = parent
         self.entries = entries
-
-    def isinternal(self):
-        return false
 
     def __len__(self):
         return len(entries)
@@ -108,9 +110,6 @@ class InternalNode(Node):
     def __len__(self):
         return len(entries)
         
-    def isinternal(self):
-        return true
-
     def add(self, obj):
         #Use Entry as key to dict even though eq and hash haven't been defined
         distance = {}
