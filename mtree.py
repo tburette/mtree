@@ -13,6 +13,8 @@
 # Do not check and allow duplicates in the tree.
 #  verify it is true + say so in docstring
 #add a nearest neighbor function (that is implemented in term of k-NN)
+#entries of a node should never be empty(right?) so remove default value
+# of none for entries parameters
 
 __all__ = ['MTree']
 
@@ -110,15 +112,31 @@ class InternalNode(Node):
     def __len__(self):
         return len(entries)
         
-    def add(self, obj):
-        #Use Entry as key to dict even though eq and hash haven't been defined
-        distance = {}
+    def add(self, obj):     
+        #put d(obj, e) in a dict to prevent recomputation 
+        #I guess memoization could be used to make code clearer but that is
+        #too magic for me plus there is potentially a very large number of
+        #calls to memoize
+        dist_to_obj = {}
         for e in self.entries:
-            distance[e] = d(obj, e)
-            
-        valid_entries = filter(lambda e : distance[e] <= e.radius,
-                              self.entries)
-        
-        if valid_entries:
-            best_entry = min(distance, key=distance.get)
-            best_entry.add(obj)
+            #Use Entry as key to dict even though
+            #eq and hash haven't been defined
+            dist_to_obj[e] = d(obj, e)
+
+        def find_best_entry_requiring_no_covering_radius_increase():
+            valid_entries = filter(lambda e : dist_to_obj[e] <= e.radius,
+                                   self.entries)
+            if valid_entries:
+                return min(valid_entries, key=dist_to_obj.get)
+            else: return None
+                
+        def find_best_entry_minimizing_radius_increase():
+            entry = min(self.entries,
+                             key=lambda e: dist_to_obj[e] - e.radius)
+            #enlarge radius so that obj is in the covering radius of e 
+            entry.radius = dist_to_obj[e]
+            return entry
+
+        entry = find_best_entry_requiring_no_covering_radius_increase() or \
+            find_best_entry_minimizing_radius_increase()
+        entry.add(obj)
