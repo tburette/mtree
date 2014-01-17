@@ -82,13 +82,13 @@ class Leaf(Node):
         self.entries = entries
 
     def __len__(self):
-        return len(entries)
+        return len(self.entries)
 
     def add(self, obj):
-        distance_to_parent = self.d(obj, parent) if parent else None
+        distance_to_parent = self.d(obj, self.parent) if self.parent else None
         new_entry = LeafEntry(obj, distance_to_parent)
         if(len(self) < self.max_node_size):
-            entries.add(new_entry)
+            self.entries.add(new_entry)
         else:
             split(self, new_entry)
 
@@ -109,7 +109,7 @@ class InternalNode(Node):
         self.entries = entries
 
     def __len__(self):
-        return len(entries)
+        return len(self.entries)
 
     #TODO: appliquer optimisation qui utilise d du parent pour reduire d faits
     # cf M-Tree paper 3.3
