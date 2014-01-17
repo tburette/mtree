@@ -1,4 +1,3 @@
-#TODO: add: appliquer optimisation qui utilise d du parent pour reduire d faits
 #infinity? (cf k-NN search)
 #implement only one promote and partition policies but code so that
 # other can be added later
@@ -111,7 +110,9 @@ class InternalNode(Node):
 
     def __len__(self):
         return len(entries)
-        
+
+    #TODO: appliquer optimisation qui utilise d du parent pour reduire d faits
+    # cf M-Tree paper 3.3
     def add(self, obj):     
         #put d(obj, e) in a dict to prevent recomputation 
         #I guess memoization could be used to make code clearer but that is
