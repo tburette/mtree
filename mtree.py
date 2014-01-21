@@ -1,13 +1,13 @@
-#TODO: code duplication between Leaf and InternalNode. Create common base class
-#TODO: say that is (similar to B-tree and) in memory only
-#TODO: specify in docstring exactly what d can return :
+#TODO: doc say that it is (similar to B-tree and) in memory only
+#TODO: doc specify exactly what d can return :
 # (something that work like) a number
-#TODO: specify in docstring what exactly an obj can be
+#TODO: doc specify what exactly an obj can be
 # anything that can be used by the d provided.
 # never do anything with obj except store it and use it as param to d
-#talk about duplicates in doc (same object or object with d(x, y) = 0).
+#TODO: doc talk about duplicate obj (same object or object with d(x, y) = 0).
 # Do not check and allow duplicates in the tree.
 #  verify it is true + say so in docstring
+#TODO: doc usage and example
 """Search for elements that are the most similar to a given one
 
 The M-tree is a data structure that can store elements and search for them. The particularity is that instead of performing exact search to find elements that match exactly the search query, it performs similarity queries, that is finding the elements that are the most similar to a search query.
@@ -20,6 +20,7 @@ Usage:
 
 Example:
 #TODO: simple example using strings
+file:///Users/burettethomas/Documents/dev/python/python-2.7.2-docs-html/library/doctest.html
 
 
 Implementation based on the paper
@@ -33,6 +34,8 @@ Implementation based on the paper
 # nope : empty tree
 
 __all__ = ['MTree']
+
+import abc
 
 #TODO: node size : 32 is arbitrary. Define a reasonable default value
 class MTree(object):
@@ -91,8 +94,10 @@ class Entry(object):
         self.subtree = subtree
 
 
-class LeafNode(object):
-    """A leaf of the M-tree
+class AbstractNode(object):
+    """An abstract leaf of the M-tree.
+
+    Concrete class are LeafNode and InternalNode
 
     We need to keep a reference to mtree so that we can know if a given node
     is root as well as update the root.
@@ -100,7 +105,10 @@ class LeafNode(object):
     We need to keep both the parent entry and the parent node (i.e. the node
     in which the parent entry is) for the split operation. During a split
     we may need to remove the parent entry from the node as well as adding
-    a new entry to the node. (This is also the case for InternalNode)"""
+    a new entry to the node."""
+
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self,
                  d,
                  max_node_size,
@@ -108,6 +116,10 @@ class LeafNode(object):
                  parent_node=None,
                  parent_entry=None,
                  entries=set()):
+        """A node should never be empty (no entry). We still allow it
+        Because it can make code simpler to first create the object and only
+        fill it with entries later.
+        """
         self.d = d
         self.max_node_size = max_node_size
         self.mtree = mtree
@@ -140,6 +152,32 @@ class LeafNode(object):
             raise TypeError('Trying to add %s into a full node' % str(entry))
         self.entries.add(self, entry)
 
+    @abc.abstractmethod
+    def add(self, obj):
+        pass
+
+    @abc.abstractmethod
+    def covering_radius_for(self, obj):
+        pass
+        
+
+class LeafNode(AbstractNode):
+    """A leaf of the M-tree"""
+    def __init__(self,
+                 d,
+                 max_node_size,
+                 mtree,
+                 parent_node=None,
+                 parent_entry=None,
+                 entries=set()):
+
+        AbstractNode.__init__(self,
+                              d,
+                              max_node_size,
+                              mtree,
+                              parent_node,
+                              parent_entry,
+                              entries)
     def add(self, obj):
         distance_to_parent = self.d(obj, self.parent_entry.obj) \
             if self.parent_entry else None
@@ -162,33 +200,18 @@ class InternalNode(object):
                  d,
                  max_node_size,
                  mtree,
-                 parent_node = None,
-                 parent_entry = None,
+                 parent_node=None,
+                 parent_entry=None,
                  entries=set()):
-        self.d = d
-        self.max_node_size = max_node_size
-        self.mtree = mtree
-        self.parent_node = parent_node
-        self.parent_entry = parent_entry
-        self.entries = entries
 
-    def __len__(self):
-        return len(self.entries)
+        AbstractNode.__init__(self,
+                              d,
+                              max_node_size,
+                              mtree,
+                              parent_node,
+                              parent_entry,
+                              entries)
 
-    def isfull(self):
-        return len(self) == self.max_node_size
-
-    def isroot(self):
-        return self is mtree.root
-
-    def remove_entry(self, entry):
-        self.entries.remove(entry)
-
-    def add_entry(self, entry):
-        if self.isfull():
-            raise TypeError('Trying to add %s into a full node' % str(entry))
-        self.entries.add(self, entry)
-    
     #TODO: appliquer optimisation qui utilise d du parent pour reduire d faits
     # cf M-Tree paper 3.3
     def add(self, obj):     
@@ -223,7 +246,9 @@ class InternalNode(object):
         """
         return max(map(lambda e: self.d(obj, e.obj) + e.radius, self.entries))
 
-                                  
+#A lot of the code is duplicated to do the same operation on the existing_node
+#and the new node :(. Could prevent that by creating a set of two elements and
+#perform on the (two) elements of that set.
 def split(existing_node, entry, d):
     """
     splits the node into two nodes.
@@ -236,10 +261,7 @@ def split(existing_node, entry, d):
     #parent node, parent entry and entries are set later
     new_node = type(existing_node)(existing_node.d,
                                    existing_node.max_node_size,
-                                   existing_node.mtree,
-                                   None,
-                                   None,
-                                   None)
+                                   existing_node.mtree)
     all_entries = existing_node.entries & set((entry,))
 
     routing_object1, routing_object2 = promote(all_entries)
@@ -249,6 +271,7 @@ def split(existing_node, entry, d):
 
     existing_node.entries = entries1
     new_node.entries = entries2
+    
     def update_entries_distance_to_parent(entries, parent_routing_object):
         for entry in entries:
             entry.distance_to_parent = d(entry.obj, parent_routing_object)
@@ -258,6 +281,7 @@ def split(existing_node, entry, d):
     #must save the old entry of the existing node because it will have
     #to be removed from the parent node later
     old_existing_node_entry = existing_node.parent_entry
+    
     existing_node_entry = build_entry(existing_node, routing_object1)
     existing_node.parent_entry = existing_node_entry
 
@@ -277,12 +301,11 @@ def split(existing_node, entry, d):
         
         mtree.root = new_root
     else:
-        #!! cas ou parent est full : que contient l'entry?
         parent_node = existing_node.parent_node
 
         if not parent_node.isroot():
-            #parent node has itself a parent, therefore the entries of
-            #parent node must have distance_to_parent set appropriately
+            #parent node has itself a parent, therefore the two entries we add
+            #in the parent  must have distance_to_parent set appropriately
             existing_node_entry.distance_to_parent = \
                 d(existing_node_entry.obj, parent_node.parent_entry.obj)
             new_node_entry.distance_to_parent = \
@@ -300,7 +323,7 @@ def split(existing_node, entry, d):
 
 def build_entry(node, routing_object, distance_to_parent=None):
     """Returns a new entry whose covering tree is node and
-    the routing_object is the parameter.
+    the routing object is routing_object
     """
     covering_radius = node.covering_radius_for(routing_object)
     return Entry(routing_object,
