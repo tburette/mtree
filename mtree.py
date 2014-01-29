@@ -1,6 +1,8 @@
 #TODO: doc say that it is (similar to B-tree and) in memory only
 #TODO: doc specify exactly what d can return :
 # (something that work like) a number
+# value always the same for same param
+# + properties
 #TODO: doc specify what exactly an obj can be
 # anything that can be used by the d provided.
 # never do anything with obj except store it and use it as param to d
@@ -28,28 +30,102 @@ Implementation based on the paper
 
 """
 #infinity? (cf k-NN search)
-#add a nearest neighbor function (that is implemented in term of k-NN)
-#entries of a node should never be empty(right?) so remove default value
-# of none for entries __init__ parameters
-# nope : empty tree
+#add a nearest neighbor function (implemented in term of k-NN)
+#little tool to check that d is valid
 
-__all__ = ['MTree']
+__all__ = ['MTree', 'M_LB_DIST_confirmed', 'generalized_hyperplane']
 
 import abc
+from itertools import combinations
+
+
+def M_LB_DIST_confirmed(entries, current_routing_entry, d):
+    """Promotion algorithm. Maximum Lower Bound on DISTance. Confirmed.
+
+    This algorithm does not work if current_routing_entry is None and the
+    distance_to_parent in entries is None. This will happen when handling
+    the root. In this case the work is delegated to 
+    
+    arguments:
+    entries: set of entries from which two routing objects must be promoted.
+    current_routing_entry: the routing_entry that was used
+    for the node containing the entries.
+    None if the node from which the entries come from is the root.
+    d: distance function.
+    """
+    if current_routing_entry is None or entries[0].distance_to_parent is None:
+        return M_LB_DIST_non_confirmed(entries,
+                                       current_routing_entry,
+                                       d)
+    
+    #if entries contain only one element or two elements twice the same, then
+    #the two routing elements returned could be the same. (could that happen?)
+    new_entry = max(entries, key=lambda e: e.distance_to_parent)
+    return (current_routing_entry, new_entry)
+
+def M_LB_DIST_non_confirmed(entries, current_routing_entry, d):
+    """Promotion algorithm. Maximum Lower Bound on DISTance. Unconfirmed
+
+    Compares all pair of entries and select the two who are the furthest apart.
+    """
+    return max(combinations(entries, 2), key=lambda (x, y): d(x, y))
+        
+    
+
+#warning. One set might contain only one element.
+#If the routing objects are not in entries it might even be possible that
+#all the elements are in one set.
+def generalized_hyperplane(entries, routing_object1, routing_oject2, d):
+    """Partition algorithm
+
+    Returns a tuple of two elements. The first one is the set of entries
+    assigned two the routing_object1 while the second is the set of entries
+    assigned to routing_object2"""
+    entries_list = (set(), set())
+    for entry in  entries:
+        entries_list[d(entry.obj, routing_object1) > \
+                         d(entry.obj, routing_object2)].add(entry)    
+    return new_entries
+
 
 #TODO: node size : 32 is arbitrary. Define a reasonable default value
 class MTree(object):
-    def __init__(self, d, max_node_size=32):
+    def __init__(self,
+                 d,
+                 max_node_size=32,
+                 promote=M_LB_DIST_confirmed,
+                 partition=generalized_hyperplane):
         """
         Creates a new MTree.
 
+        Arguments:
         d: distance function.
         max_node_size: optional. Maximum number of entries in a node of
-        the M-tree
+            the M-tree
+        promote: optional. Used during insertion when a node is split in two.
+            Determines given the set of entries which two entries should be
+            used as routing object to represent the two nodes in the
+            parent node.
+            This is delving pretty far into implementation alternatives of
+            the Mtree. If you don't understand what this all means just use the
+            default value and you'll be fine.
+        partition: optional. Used during insertion when a node is split in two.
+            Determines in which of the two node each entry should go.
+            This is delving pretty far into implementation alternatives of
+            the Mtree. If you don't understand what this all means just use the
+            default value and you'll be fine.
         """
+        if not callable(d):
+            raise TypeError('d is not a function')
+        if max_node_size < 2:
+            raise ValueError('max_node_size must be >= 2 but is %d' %
+                             max_node_size)
         self.size = 0
-        self.root = LeafNode(d, max_node_size, self)
         self.d = d
+        self.max_node_size = max_node_size
+        self.promote = promote
+        self.partition = partition
+        self.root = LeafNode(d, self)
 
     def __len__(self):
         return self.size
@@ -111,17 +187,14 @@ class AbstractNode(object):
 
     def __init__(self,
                  d,
-                 max_node_size,
                  mtree,
                  parent_node=None,
                  parent_entry=None,
                  entries=set()):
-        """A node should never be empty (no entry). We still allow it
-        Because it can make code simpler to first create the object and only
-        fill it with entries later.
-        """
+        #A node is empty (no entry) when the tree is empty.
+        #May also be empty during construction (create empty node then add
+        #the values).
         self.d = d
-        self.max_node_size = max_node_size
         self.mtree = mtree
         self.parent_node = parent_node
         self.parent_entry = parent_entry
@@ -130,10 +203,13 @@ class AbstractNode(object):
     def __len__(self):
         return len(self.entries)
 
-    def isfull(self):
-        return len(self) == self.max_node_size
+    def is_full(self):
+        return len(self) == self.mtree.max_node_size
 
-    def isroot(self):
+    def is_empty(self):
+        return len(self) == 0
+
+    def is_root(self):
         return self is mtree.root
 
     def remove_entry(self, entry):
@@ -148,7 +224,7 @@ class AbstractNode(object):
 
         Raises TypeError if the node is full.
         """
-        if self.isfull():
+        if self.is_full():
             raise TypeError('Trying to add %s into a full node' % str(entry))
         self.entries.add(self, entry)
 
@@ -165,7 +241,6 @@ class LeafNode(AbstractNode):
     """A leaf of the M-tree"""
     def __init__(self,
                  d,
-                 max_node_size,
                  mtree,
                  parent_node=None,
                  parent_entry=None,
@@ -173,7 +248,6 @@ class LeafNode(AbstractNode):
 
         AbstractNode.__init__(self,
                               d,
-                              max_node_size,
                               mtree,
                               parent_node,
                               parent_entry,
@@ -182,7 +256,7 @@ class LeafNode(AbstractNode):
         distance_to_parent = self.d(obj, self.parent_entry.obj) \
             if self.parent_entry else None
         new_entry = Entry(obj, distance_to_parent)
-        if not self.isfull():
+        if not self.is_full():
             self.entries.add(new_entry)
         else:
             split(self, new_entry, d)
@@ -191,14 +265,16 @@ class LeafNode(AbstractNode):
         """Compute minimal radius for obj so that it covers all the objects
         of this node.
         """
-        return max(map(lambda e: self.d(obj, e.obj), self.entries))
+        if not self.entries:
+            return 0
+        else:
+            return max(map(lambda e: self.d(obj, e.obj), self.entries))
         
     
 class InternalNode(object):
     """An internal node of the M-tree"""
     def __init__(self,
                  d,
-                 max_node_size,
                  mtree,
                  parent_node=None,
                  parent_entry=None,
@@ -206,14 +282,13 @@ class InternalNode(object):
 
         AbstractNode.__init__(self,
                               d,
-                              max_node_size,
-                              mtree,
+                             mtree,
                               parent_node,
                               parent_entry,
                               entries)
 
-    #TODO: appliquer optimisation qui utilise d du parent pour reduire d faits
-    # cf M-Tree paper 3.3
+    #TODO: apply optimization that uses the d of the parent to reduce the
+    #number of d computation performed. cf M-Tree paper 3.3
     def add(self, obj):     
         #put d(obj, e) in a dict to prevent recomputation 
         #I guess memoization could be used to make code clearer but that is
@@ -244,7 +319,11 @@ class InternalNode(object):
         """Compute minimal radius for obj so that it covers all the radius
         of the routing objects of this node
         """
-        return max(map(lambda e: self.d(obj, e.obj) + e.radius, self.entries))
+        if not self.entries:
+            return 0
+        else:
+            return max(map(lambda e: self.d(obj, e.obj) + e.radius,
+                           self.entries))
 
 #A lot of the code is duplicated to do the same operation on the existing_node
 #and the new node :(. Could prevent that by creating a set of two elements and
@@ -257,21 +336,38 @@ def split(existing_node, entry, d):
     existing_node: full node to which entry should have been added
     entry: the added node
     """
+    mtree = existing_node.mtree
     #type of the new node must be the same as existing_node
     #parent node, parent entry and entries are set later
     new_node = type(existing_node)(existing_node.d,
-                                   existing_node.max_node_size,
                                    existing_node.mtree)
     all_entries = existing_node.entries & set((entry,))
 
-    routing_object1, routing_object2 = promote(all_entries)
-    entries1, entries2 = partition(all_entries,
-                                   routing_object1,
-                                   routing_object2)
+    #It is guaranteed that the current routing entry of the split node
+    #(i.e. existing_node.parent_entry) is the one distance_to_parent
+    # refers to in the entries (including the entry parameter).
+    routing_object1, routing_object2 = \
+        mtree.promote(all_entries, existing_node.parent_entry, d)
+    entries1, entries2 = mtree.partition(all_entries,
+                                         routing_object1,
+                                         routing_object2,
+                                         d)
+    assert not entries1 or not entries2, "Error during split operation. All the entries have been assigned to one routing_objects and none to the other! Should never happen since at least the entry corresponding to the routing_object should be assigned to it."
 
     existing_node.entries = entries1
     new_node.entries = entries2
+
+    #wastes d computations if parent hasn't changed.
+    #How to avoid? -> check if routing_object1/2 is the same as the old routing
     
+    #promote/partition probably did similar d computations.
+    #How to avoid recomputations between promote, partition and this?
+    #share cache (a dict) passed between functions?
+    #memoization? (with LRU!).
+    #    id to order then put the two objs in a tuple (or rather when fetching
+    #      try both way
+    #    add a function to add value without computing them
+    #      (to add distance_to_parent)
     def update_entries_distance_to_parent(entries, parent_routing_object):
         for entry in entries:
             entry.distance_to_parent = d(entry.obj, parent_routing_object)
@@ -288,9 +384,8 @@ def split(existing_node, entry, d):
     new_node_entry = build_entry(new_node, routing_object2)
     new_node.parent_entry = new_node_entry    
         
-    if existing_node.isroot():
+    if existing_node.is_root():
         new_root_node = InternalNode(existing_node.d,
-                                existing_node.max_node_size,
                                 existing_node.mtree)
 
         existing_node.parent_node = new_root
@@ -303,9 +398,9 @@ def split(existing_node, entry, d):
     else:
         parent_node = existing_node.parent_node
 
-        if not parent_node.isroot():
+        if not parent_node.is_root():
             #parent node has itself a parent, therefore the two entries we add
-            #in the parent  must have distance_to_parent set appropriately
+            #in the parent must have distance_to_parent set appropriately
             existing_node_entry.distance_to_parent = \
                 d(existing_node_entry.obj, parent_node.parent_entry.obj)
             new_node_entry.distance_to_parent = \
@@ -314,7 +409,7 @@ def split(existing_node, entry, d):
         parent_node.remove_entry(old_existing_existing_node)
         parent_node.add_entry(existing_node_entry)
         
-        if parent_node.isfull():
+        if parent_node.is_full():
             split(parent_node, new_node_entry, d)
         else:
             parent_node.add_entry(new_node_entry)
@@ -329,11 +424,4 @@ def build_entry(node, routing_object, distance_to_parent=None):
     return Entry(routing_object,
                  distance_to_parent,
                  covering_radius,
-                 node)
-    
-#should be passed to MTree with default value
-def promote(entries):
-    pass
-
-def partition(entries, routing_entry1, routing_entry2):
-    pass
+                 node)    
