@@ -1,4 +1,4 @@
 *.pyc
 *~
 *.pyo
-.ropeproject/*
+*/.ropeproject/*
