@@ -36,13 +36,13 @@ Implementation based on the paper
 __all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed', 'generalized_hyperplane']
 
 import abc
-from itertools import combinations
+from itertools import combinations, islice
 
 
 def M_LB_DIST_confirmed(entries, current_routing_entry, d):
     """Promotion algorithm. Maximum Lower Bound on DISTance. Confirmed.
 
-    Return the entry that is the furthest apart from current_routing_entry 
+    Return the object that is the furthest apart from current_routing_entry 
     using only precomputed distances stored in the entries.
     
     This algorithm does not work if current_routing_entry is None and the
@@ -66,14 +66,16 @@ def M_LB_DIST_confirmed(entries, current_routing_entry, d):
     #if entries contain only one element or two elements twice the same, then
     #the two routing elements returned could be the same. (could that happen?)
     new_entry = max(entries, key=lambda e: e.distance_to_parent)
-    return (current_routing_entry, new_entry)
+    return (current_routing_entry.obj, new_entry.obj)
 
 def M_LB_DIST_non_confirmed(entries, unused_current_routing_entry, d):
     """Promotion algorithm. Maximum Lower Bound on DISTance. Non confirmed.
 
-    Compares all pair of entries and select the two who are the furthest apart.
+    Compares all pair of objects (in entries) and select the two who are
+    the furthest apart.
     """
-    return max(combinations(entries, 2), key=lambda (x, y): d(x.obj, y.obj))
+    objs = map(lambda e: e.obj, entries)
+    return max(combinations(objs, 2), key=lambda (x, y): d(x, y))
 
 #If the routing objects are not in entries it is possible that
 #all the elements are in one set and the other set is empty.
@@ -94,6 +96,7 @@ def generalized_hyperplane(entries, routing_object1, routing_object2, d):
 
 
 #TODO: node size : 32 is arbitrary. Define a reasonable default value
+#make a few tests and count number of call to d (hint: decorate d)
 class MTree(object):
     def __init__(self,
                  d,
@@ -180,6 +183,13 @@ class Entry(object):
         self.radius = radius
         self.subtree = subtree
 
+    def __repr__(self):
+        return "<Entry obj: %r, dist: %r, radius: %r, subtree: %r>" % (
+            self.obj,
+            self.distance_to_parent,
+            self.radius,
+            self.subtree.repr_class() if self.subtree else self.subtree)
+
 
 class AbstractNode(object):
     """An abstract leaf of the M-tree.
@@ -201,7 +211,7 @@ class AbstractNode(object):
                  mtree,
                  parent_node=None,
                  parent_entry=None,
-                 entries=set()):
+                 entries=None):
         #There will be an empty node (entries set is empty) when the tree
         #is empty and there only is an empty root.
         #May also be empty during construction (create empty node then add
@@ -210,7 +220,25 @@ class AbstractNode(object):
         self.mtree = mtree
         self.parent_node = parent_node
         self.parent_entry = parent_entry
-        self.entries = entries
+        self.entries = set(entries) if entries else set()
+
+    def __repr__(self):
+        #entries might be big. Only prints the first few elements
+        entries_str = '%s' % list(islice(self.entries, 2))
+        if len(self.entries) > 2:
+            entries_str = entries_str[:-1] + ', ...]'
+            
+        return "<%s parent_node: %s, parent_entry: %s, entries:%s>" % (
+            self.__class__.__name__,
+            self.parent_node.repr_class() \
+                if self.parent_node else self.parent_node,
+            self.parent_entry,
+            entries_str
+            
+    )
+
+    def repr_class(self):
+        return "<" + self.__class__.__name__ + ">"
 
     def __len__(self):
         return len(self.entries)
@@ -259,7 +287,7 @@ class LeafNode(AbstractNode):
                  mtree,
                  parent_node=None,
                  parent_entry=None,
-                 entries=set()):
+                 entries=None):
 
         AbstractNode.__init__(self,
                               d,
@@ -275,6 +303,7 @@ class LeafNode(AbstractNode):
             self.entries.add(new_entry)
         else:
             split(self, new_entry, self.d)
+        assert self.is_root() or self.parent_node
 
     def covering_radius_for(self, obj):
         """Compute minimal radius for obj so that it covers all the objects
@@ -294,7 +323,7 @@ class InternalNode(AbstractNode):
                  mtree,
                  parent_node=None,
                  parent_entry=None,
-                 entries=set()):
+                 entries=None):
 
         AbstractNode.__init__(self,
                               d,
@@ -312,7 +341,7 @@ class InternalNode(AbstractNode):
         #calls to memoize
         dist_to_obj = {}
         for e in self.entries:
-            dist_to_obj[e] = self.d(obj, e)
+            dist_to_obj[e] = self.d(obj, e.obj)
 
         def find_best_entry_requiring_no_covering_radius_increase():
             valid_entries = filter(lambda e : dist_to_obj[e] <= e.radius,
@@ -325,12 +354,13 @@ class InternalNode(AbstractNode):
             entry = min(self.entries,
                              key=lambda e: dist_to_obj[e] - e.radius)
             #enlarge radius so that obj is in the covering radius of e 
-            entry.radius = dist_to_obj[e]
+            entry.radius = dist_to_obj[entry]
             return entry
 
         entry = find_best_entry_requiring_no_covering_radius_increase() or \
             find_best_entry_minimizing_radius_increase()
-        entry.add(obj)
+        entry.subtree.add(obj)
+        assert self.is_root() or self.parent_node
 
     def covering_radius_for(self, obj):
         """Compute minimal radius for obj so that it covers the radiuses
@@ -365,7 +395,7 @@ def split(existing_node, entry, d):
     #parent node, parent entry and entries are set later
     new_node = type(existing_node)(existing_node.d,
                                    existing_node.mtree)
-    all_entries = existing_node.entries & set((entry,))
+    all_entries = existing_node.entries | set((entry,))
 
     #It is guaranteed that the current routing entry of the split node
     #(i.e. existing_node.parent_entry) is the one distance_to_parent
@@ -399,6 +429,13 @@ def split(existing_node, entry, d):
     update_entries_distance_to_parent(existing_node.entries, routing_object1)
     update_entries_distance_to_parent(new_node.entries, routing_object2)
 
+    def update_entries_parent_node(node):
+        for entry in node.entries:
+            if entry.subtree:
+                entry.subtree.parent_node = node
+    update_entries_parent_node(existing_node)
+    update_entries_parent_node(new_node)
+
     #must save the old entry of the existing node because it will have
     #to be removed from the parent node later
     old_existing_node_parent_entry = existing_node.parent_entry
@@ -407,7 +444,8 @@ def split(existing_node, entry, d):
     existing_node.parent_entry = existing_node_entry
 
     new_node_entry = build_entry(new_node, routing_object2)
-    new_node.parent_entry = new_node_entry    
+    new_node.parent_entry = new_node_entry
+
         
     if existing_node.is_root():
         new_root_node = InternalNode(existing_node.d,
@@ -439,6 +477,8 @@ def split(existing_node, entry, d):
         else:
             parent_node.add_entry(new_node_entry)
             new_node.parent_node = parent_node
+    assert existing_node.is_root() or existing_node.parent_node
+    assert new_node.is_root() or new_node.parent_node
         
 
 def build_entry(node, routing_object, distance_to_parent=None):
@@ -449,4 +489,12 @@ def build_entry(node, routing_object, distance_to_parent=None):
     return Entry(routing_object,
                  distance_to_parent,
                  covering_radius,
-                 node)    
+                 node)
+
+if __name__ == '__main__':
+    max_sizes = range(2, 20) + [1000]
+    for max_size in max_sizes:
+        tree = MTree(lambda i1, i2: abs(i1 - i2), max_size)
+        objs = range(5000)
+        for o in objs:
+            tree.add(o)
