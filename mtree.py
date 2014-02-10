@@ -156,8 +156,8 @@ class MTree(object):
         Add all the elements in the M-tree
         """
         #TODO: implement using the bulk-loading algorithm
-        for x in iterable:
-            self.add(x)
+        for obj in iterable:
+            self.add(obj)
 
 
 class Entry(object):
@@ -340,8 +340,8 @@ class InternalNode(AbstractNode):
         #too magic for me plus there is potentially a very large number of
         #calls to memoize
         dist_to_obj = {}
-        for e in self.entries:
-            dist_to_obj[e] = self.d(obj, e.obj)
+        for entry in self.entries:
+            dist_to_obj[entry] = self.d(obj, entry.obj)
 
         def find_best_entry_requiring_no_covering_radius_increase():
             valid_entries = filter(lambda e : dist_to_obj[e] <= e.radius,
@@ -375,6 +375,8 @@ class InternalNode(AbstractNode):
 #A lot of the code is duplicated to do the same operation on the existing_node
 #and the new node :(. Could prevent that by creating a set of two elements and
 #perform on the (two) elements of that set.
+#TODO: Put entry modifying code in entry class. That's where it belongs + makes
+# this method simpler
 def split(existing_node, entry, d):
     """
     Split existing_node into two nodes.
@@ -492,8 +494,7 @@ def build_entry(node, routing_object, distance_to_parent=None):
                  node)
 
 if __name__ == '__main__':
-    max_sizes = range(2, 20) + [1000]
-    for max_size in max_sizes:
+    for max_size in range(2, 20) + [1000]:
         tree = MTree(lambda i1, i2: abs(i1 - i2), max_size)
         objs = range(5000)
         for o in objs:
