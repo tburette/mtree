@@ -1,24 +1,76 @@
-#TODO: doc say that it is (similar to B-tree and) in memory only
-#TODO: doc specify exactly what d can return :
-# (something that work like) a number
-# value always the same for same param
-# + properties
-#TODO: doc specify what exactly an obj can be
-# anything that can be used by the d provided.
-# never do anything with obj except store it and use it as param to d
 #TODO: doc talk about duplicate obj (same object or object with d(x, y) = 0).
 # Do not check and allow duplicates in the tree.
 #  verify it is true + say so in docstring
+#TODO: doc exemple (string, image,...)
 #TODO: doc usage and example
-"""Search for elements that are the most similar to a given one
+"""Datastructure to search for elements that are the most similar to a query.
 
-The M-tree is a data structure that can store elements and search for them. The particularity is that instead of performing exact search to find elements that match exactly the search query, it performs similarity queries, that is finding the elements that are the most similar to a search query.
+The M-tree is a data structure that store a set of elements and can retrieve
+the element(s) the most similar to a given one.
+The particularity is that instead of performing an exact search that finds
+elements that match exactly the search query, it performs similarity queries,
+that is finding the elements that are the most similar to a given element.
 
-The M-tree is a tree based implementation of a metric space ( http://en.wikipedia.org/wiki/Metric_space ).
+The M-tree is a tree based implementation of a metric space
+( http://en.wikipedia.org/wiki/Metric_space ), it is similar to b-tree.
+
+This implementation is memory only. The tree is not stored on disk.
+Altough the tree itself resides in memory you can store the objects on disk
+(or online,...). For example the objects you pass to the tree could be path
+to files, the d function would loads the file from disk to perform the
+comparison.
+To maintain good performance while minimizing data in memory, a good trade-off
+is to store in objects the path to the actual data as well as the key features
+of the data that the distance function (d) uses to compute the distance.
+That way, searches are fast (no disk access) while keeping data on disk.
+
+To use the M-tree you only need to pass two things to it:
+-a set of objects to store in the data structure
+-a distance function ( d(x, y) ) that returns a number establishing
+how similar two objects are.
+
+The objects you insert in the tree can be absolutely anything as long as the
+distance function you provide is able to handle them.
+
+The distance function (d) must be provided when the tree is created.
+It takes as a parameter two objects and return an number telling how
+similar the two objects are. The smaller the number, the more similar the
+objects are. The number returned can ba an integer, float,... Technically
+anything that behaves like a number (<, <=, >,... work like numbers).
+
+The distance function MUST respect the following properties:
+- d always return the same value given the same parameters
+- Non negativity: forall x, y: d(x, y) >= 0
+  d must never return a negative value. If the value your function returns
+  can be negative but has a lower bound (e.g. never returns anything lower
+  than -100) you can fix this by systematically increasing the value of
+  all the number returned (e.g. return value +100).
+- Symmetry: forall x, y: d(x, y) = d(y, x)
+  The same value must be returned no matter what the order of the parameters
+  are.
+- Identity: forall x, y: d(x, y) = 0 means that x = y
+- Triangle inequality: forall x, y, z d(x, z) <= d(x, y) + d(y, z)
+  The distance from one point to a second is always smaller or equal to the
+  the distance from one point to an intermediary + the distance from the
+  intermediary to the second point.
+  Here is an analogy to help understand this property. Imagine a road
+  going directlty between two towns. It never turns, it is a perfectly
+  straight line. This is obviously the shortest way to get between the two
+  town. Now imagine we pick a position anywhere we want. If we go from
+  one town to the other by passing trough this position, it is impossible to
+  have travelled less than by following the straight road.
+
+If the distance function violates one of these rule, the M-tree will appear to
+work but may return erroneous results. 
 
 
 Usage:
-#TODO: cf Lib/heapq.py
+def d_int(x, y):      # defines a distance function for numbers
+    return abs(x - y)
+tree = MTree(d_int)   # creates an empty M-tree
+tree.add(1)           # add objects to the tree.
+tree.add_all([2, 3])
+#TODO: completer
 
 Example:
 #TODO: simple example using strings
@@ -222,7 +274,7 @@ class AbstractNode(object):
         self.parent_entry = parent_entry
         self.entries = set(entries) if entries else set()
 
-    def __repr__(self):
+    def __repr__(self): # pragma: no cover
         #entries might be big. Only prints the first few elements
         entries_str = '%s' % list(islice(self.entries, 2))
         if len(self.entries) > 2:
@@ -237,10 +289,10 @@ class AbstractNode(object):
             
     )
 
-    def repr_class(self):
+    def repr_class(self): # pragma: no cover
         return "<" + self.__class__.__name__ + ">"
 
-    def __len__(self):
+    def __len__(self): 
         return len(self.entries)
 
     def is_full(self):
@@ -269,12 +321,12 @@ class AbstractNode(object):
         self.entries.add(entry)
 
     @abc.abstractmethod
-    def add(self, obj):
+    def add(self, obj): # pragma: no cover
         """Add obj into this subtree"""
         pass
 
     @abc.abstractmethod
-    def covering_radius_for(self, obj):
+    def covering_radius_for(self, obj): # pragma: no cover
         """Compute the radius needed for obj to cover the entries of this node.
         """
         pass
@@ -493,7 +545,7 @@ def build_entry(node, routing_object, distance_to_parent=None):
                  covering_radius,
                  node)
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     for max_size in range(2, 20) + [1000]:
         tree = MTree(lambda i1, i2: abs(i1 - i2), max_size)
         objs = range(5000)

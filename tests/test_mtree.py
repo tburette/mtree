@@ -1,7 +1,7 @@
 import unittest
 import collections
 #import both way because I want to access the public elements of the module
-#without mtree. prefix while also being able to access non public elements.
+#without the mtree. prefix while also being able to access non public elements.
 from mtree import *
 import mtree
 
@@ -11,13 +11,15 @@ def whitebox(f):
     f.whitebox = True
     return f
 
-#dummy d implementation that respects all the properties no matter
-#what the objects are by comparing id.
 def d_id(obj1, obj2):
+    """dummy d implementation that works for any object.
+
+    Respects all the condition for being a correct distance function.
+    Works by comparing id."""
     return reduce(int.__sub__, sorted(map(id, (obj1, obj2)), reverse=True))
 
-#d implementation for integers
 def d_int(i1, i2):
+    """d implementation for integers"""
     return abs(i1 - i2)
 
 class MTreeInitBadInput(unittest.TestCase):    
@@ -64,7 +66,7 @@ def node_objs(node):
         return map(lambda e: e.obj, node.entries)
 
 def tree_objs(tree):
-    """Returns all the objs of the tree"""
+    """Returns all the objects of the tree"""
     return node_objs(tree.root)
 
 
