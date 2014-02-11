@@ -1,4 +1,6 @@
 *.pyc
 *~
 *.pyo
-*/.ropeproject/*
+.ropeproject
+*/.ropeproject
+.coverage
