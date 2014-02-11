@@ -85,7 +85,8 @@ Implementation based on the paper
 #add a nearest neighbor function (implemented in term of k-NN)
 #little tool to check that d is valid
 
-__all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed', 'generalized_hyperplane']
+__all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed',
+           'generalized_hyperplane']
 
 import abc
 from itertools import combinations, islice
@@ -320,6 +321,23 @@ class AbstractNode(object):
             raise ValueError('Trying to add %s into a full node' % str(entry))
         self.entries.add(entry)
 
+    def set_entries_and_parent_entry(self, new_entries, new_parent_entry):
+        self.entries = new_entries
+        self.parent_entry = new_parent_entry
+        self._update_entries_distance_to_parent()
+
+    #wastes d computations if parent hasn't changed.
+    #How to avoid? -> check if the new routing_object is the same as the old
+    # (compare id(obj) not obj directly to prevent == assumption about object?)
+    def _update_entries_distance_to_parent(self):
+        if self.parent_entry:
+            for entry in self.entries:
+                entry.distance_to_parent = self.d(entry.obj,
+                                                  self.parent_entry.obj)
+        else:
+            for entry in self.entries:
+                entry.distance_to_parent = None
+
     @abc.abstractmethod
     def add(self, obj): # pragma: no cover
         """Add obj into this subtree"""
@@ -355,7 +373,7 @@ class LeafNode(AbstractNode):
             self.entries.add(new_entry)
         else:
             split(self, new_entry, self.d)
-        assert self.is_root() or self.parent_node
+        assert self.is_root() or self.parent_node        
 
     def covering_radius_for(self, obj):
         """Compute minimal radius for obj so that it covers all the objects
@@ -424,11 +442,19 @@ class InternalNode(AbstractNode):
             return max(map(lambda e: self.d(obj, e.obj) + e.radius,
                            self.entries))
 
+    def set_entries_and_parent_entry(self, new_entries, new_parent_entry):
+        AbstractNode.set_entries_and_parent_entry(self,
+                                                  new_entries,
+                                                  new_parent_entry)
+        for entry in self.entries:
+            entry.subtree.parent_node = self
+        
+
+
 #A lot of the code is duplicated to do the same operation on the existing_node
 #and the new node :(. Could prevent that by creating a set of two elements and
 #perform on the (two) elements of that set.
-#TODO: Put entry modifying code in entry class. That's where it belongs + makes
-# this method simpler
+#TODO: Ugly, complex code. Move some code in Node/Entry?
 def split(existing_node, entry, d):
     """
     Split existing_node into two nodes.
@@ -441,7 +467,7 @@ def split(existing_node, entry, d):
     entry: the added node. Caller must ensures that entry is initialized
            correctly as it would be if it were an effective entry of the node.
            This means that distance_to_parent must possess the appropriate
-           value (the ditance to existing_node.parent_entry).
+           value (the distance to existing_node.parent_entry).
     d: distance function.
     """
     mtree = existing_node.mtree
@@ -462,13 +488,13 @@ def split(existing_node, entry, d):
                                          routing_object2,
                                          d)
     assert entries1 and entries2, "Error during split operation. All the entries have been assigned to one routing_objects and none to the other! Should never happen since at least the routing objects are assigned to there corresponding set  of entries"
-
-    existing_node.entries = entries1
-    new_node.entries = entries2
-
-    #wastes d computations if parent hasn't changed.
-    #How to avoid? -> check if routing_object1/2 is the same as the old routing
     
+    #must save the old entry of the existing node because it will have
+    #to be removed from the parent node later
+    old_existing_node_parent_entry = existing_node.parent_entry
+
+    #Setting a new parent entry for a node updates the distance_to_parent in
+    #the entries of that node, hence requiring d calls.
     #promote/partition probably did similar d computations.
     #How to avoid recomputations between promote, partition and this?
     #share cache (a dict) passed between functions?
@@ -477,30 +503,13 @@ def split(existing_node, entry, d):
     #      try both way
     #    add a function to add value without computing them
     #      (to add distance_to_parent)
-    def update_entries_distance_to_parent(entries, parent_routing_object):
-        for entry in entries:
-            entry.distance_to_parent = d(entry.obj, parent_routing_object)
-    update_entries_distance_to_parent(existing_node.entries, routing_object1)
-    update_entries_distance_to_parent(new_node.entries, routing_object2)
-
-    def update_entries_parent_node(node):
-        for entry in node.entries:
-            if entry.subtree:
-                entry.subtree.parent_node = node
-    update_entries_parent_node(existing_node)
-    update_entries_parent_node(new_node)
-
-    #must save the old entry of the existing node because it will have
-    #to be removed from the parent node later
-    old_existing_node_parent_entry = existing_node.parent_entry
-    
     existing_node_entry = build_entry(existing_node, routing_object1)
-    existing_node.parent_entry = existing_node_entry
-
+    existing_node.set_entries_and_parent_entry(entries1,
+                                               existing_node_entry)
     new_node_entry = build_entry(new_node, routing_object2)
-    new_node.parent_entry = new_node_entry
-
-        
+    new_node.set_entries_and_parent_entry(entries2,
+                                          new_node_entry)
+                                          
     if existing_node.is_root():
         new_root_node = InternalNode(existing_node.d,
                                 existing_node.mtree)
