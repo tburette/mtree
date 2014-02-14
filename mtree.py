@@ -233,9 +233,15 @@ class MTree(object):
 
         while pr:
             prEntry = heappop(pr)
-            if(prEntry.d > nn.search_radius()):
-                break
+            #do not prune but stop when needed
+            #pr could get big!
+            #if(prEntry.d > nn.search_radius()):
+            #    break
             prEntry.tree.search(query_obj, pr, nn)
+            #pruning
+            #the paper prunes after each entry insertion
+            #instead whe prune once after handling all the entries of a node
+            pr = [entry for entry in pr if entry.d <= nn.search_radius()]
             
         return nn.result_list()
 
@@ -244,23 +250,31 @@ NNEntry = collections.namedtuple('NNEntry', 'obj dmax')
 class NN(object):
     def __init__(self, size):
         self.elems = [NNEntry(None, float("inf"))] * size
+        #store dmax in NN as described by the paper
+        #but it would be more logical to store it separately
+        self.dmax = float("inf")
 
     def __len__(self):
         return len(self.elems)
 
     def search_radius(self):
         """The search radius of the knn search algorithm.
+        aka dmax
 
         The search radius is dynamic."""
-        return self.elems[len(self)-1].dmax
+        return self.dmax
 
     def update(self, obj, dmax):
-#        if obj == None:
-#            return
+        if obj == None:
+            #internal node
+            self.dmax = min(self.dmax, dmax)
+            return
         self.elems.append(NNEntry(obj, dmax))
         for i in range(len(self)-1, 0, -1):
             if self.elems[i].dmax < self.elems[i-1].dmax:
                 self.elems[i-1], self.elems[i] = self.elems[i], self.elems[i-1]
+            else:
+                break
         self.elems.pop()
 
     def result_list(self):
@@ -481,7 +495,6 @@ class LeafNode(AbstractNode):
                 distance_entry_to_q = self.d(entry.obj, query_obj)
                 if distance_entry_to_q <= nn.search_radius():
                     nn.update(entry.obj, distance_entry_to_q)
-                    #should remove from pr
     
 class InternalNode(AbstractNode):
     """An internal node of the M-tree"""
@@ -578,14 +591,6 @@ class InternalNode(AbstractNode):
                     entry_dmax = self.d(entry.obj, query_obj) + entry.radius
                     if entry_dmax < nn.search_radius():
                         nn.update(None, entry_dmax)
-                        #should remove from pr entries whose dmin is
-                        #bigger than search_radius
-                        #calls the NN Update function (not specified here) to 
-                        #perform an ordered insertion in the NN array and 
-                        #receives back a (possibly new) value of dk. 
-                        #This is then used to remove from PR all sub-trees for
-                        #which the dmin lower bound exceeds dk.
-
                         
 #A lot of the code is duplicated to do the same operation on the existing_node
 #and the new node :(. Could prevent that by creating a set of two elements and
