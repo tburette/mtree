@@ -3,6 +3,7 @@
 #  verify it is true + say so in docstring
 #TODO: doc exemple (string, image,...)
 #TODO: doc usage and example
+#TODO: use doctest
 """Datastructure to search for elements that are the most similar to a query.
 
 This is an implementation of the M-tree. M-tree is a data structure to find the element(s) the most similar to a given one.
@@ -16,14 +17,17 @@ To use the M-tree you only need to pass two things to it:
 how similar two objects are.
 
 Usage:
-def d_int(x, y):      # define a distance function for numbers
-    return abs(x - y)
-    tree = MTree(d_int)   # create an empty M-tree
-    tree.add(1)           # add objects to the tree
-    tree.add_all([5, 9])
-    tree.search(10)       # search the object closest to 10. Will return 9
-    tree.search(9, 2)     # search thee two objects closest to 9.
-                          # Will return 5 and 9       
+>>> def d_int(x, y):      # define a distance function for numbers
+...     return abs(x - y)
+...
+>>> tree = MTree(d_int)   # create an empty M-tree
+>>> tree.add(1)           # add objects 1, 5 and 9 to the tree
+>>> tree.add_all([5, 9])
+>>> tree.search(10)       # search the object closest to 10. Will return 9
+>>> [9]
+>>> tree.search(9, 2)     # search the two objects closest to 9.
+>>> [5, 9]
+
 
 The objects you insert in the tree can be anything as long as the
 distance function you provide is able to handle them corretly.
@@ -84,6 +88,8 @@ __all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed',
            'generalized_hyperplane']
 
 import abc
+from heapq import heappush, heappop
+import collections
 from itertools import combinations, islice
 
 
@@ -137,7 +143,7 @@ def generalized_hyperplane(entries, routing_object1, routing_object2, d):
     assigned to the routing_object1 while the second is the set of entries
     assigned to the routing_object2"""
     partition = (set(), set())
-    for entry in  entries:
+    for entry in entries:
         partition[d(entry.obj, routing_object1) > \
                          d(entry.obj, routing_object2)].add(entry)    
     return partition
@@ -207,14 +213,83 @@ class MTree(object):
         for obj in iterable:
             self.add(obj)
 
+    def search(self, query_obj, k=1):
+        """Return the k objects the most similar to query_obj.
 
+        Implementation of the k-Nearest Neighbor algorithm.
+        Returns a list of the k closest elements to query_obj, ordered by
+        distance to query_obj (from closest to furthest).
+        If the tree has less objects than k, it will return all the
+        elements of the array."""
+        k = min(k, len(self))
+        if k == 0: return []
+
+        #priority queue of subtrees not yet explored ordered by dmin
+        pr = []
+        heappush(pr, PrEntry(self.root, 0))
+
+        #at the end will contain the results 
+        nn = NN(k)
+
+        while pr:
+            prEntry = heappop(pr)
+            if(prEntry.d > nn.search_radius()):
+                break
+            prEntry.tree.search(query_obj, pr, nn)
+            
+        return nn.result_list()
+
+    
+NNEntry = collections.namedtuple('NNEntry', 'obj dmax')
+class NN(object):
+    def __init__(self, size):
+        self.elems = [NNEntry(None, float("inf"))] * size
+
+    def __len__(self):
+        return len(self.elems)
+
+    def search_radius(self):
+        """The search radius of the knn search algorithm.
+
+        The search radius is dynamic."""
+        return self.elems[len(self)-1].dmax
+
+    def update(self, obj, dmax):
+#        if obj == None:
+#            return
+        self.elems.append(NNEntry(obj, dmax))
+        for i in range(len(self)-1, 0, -1):
+            if self.elems[i].dmax < self.elems[i-1].dmax:
+                self.elems[i-1], self.elems[i] = self.elems[i], self.elems[i-1]
+        self.elems.pop()
+
+    def result_list(self):
+        result = map(lambda entry: entry.obj, self.elems)
+        return result
+
+    def __repr__(self):
+        return "NN(%r)" % self.elems
+            
+
+class PrEntry(object):
+    def __init__(self, tree, d):
+        self.tree = tree
+        self.d = d
+
+    def __lt__(self, other):
+        return self.d < other.d
+
+    def __repr__(self):
+        return "PrEntry(tree:%r, d:%r)" % (self.tree, self.d)
+
+    
 class Entry(object):
     """
     
-    The leafs and internal nodes the M-tree contain a list of instances of this
-    class.
+    The leafs and internal nodes of the M-tree contain a list of instances of
+    this class.
 
-    The distance to the parent is None if the leaf in which this entry is
+    The distance to the parent is None if the node in which this entry is
     stored has no parent.
 
     radius and subtree are None if the entry is contained in a leaf.
@@ -232,7 +307,7 @@ class Entry(object):
         self.subtree = subtree
 
     def __repr__(self):
-        return "<Entry obj: %r, dist: %r, radius: %r, subtree: %r>" % (
+        return "Entry(obj: %r, dist: %r, radius: %r, subtree: %r)" % (
             self.obj,
             self.distance_to_parent,
             self.radius,
@@ -276,7 +351,7 @@ class AbstractNode(object):
         if len(self.entries) > 2:
             entries_str = entries_str[:-1] + ', ...]'
             
-        return "<%s parent_node: %s, parent_entry: %s, entries:%s>" % (
+        return "%s(parent_node: %s, parent_entry: %s, entries:%s)" % (
             self.__class__.__name__,
             self.parent_node.repr_class() \
                 if self.parent_node else self.parent_node,
@@ -286,7 +361,7 @@ class AbstractNode(object):
     )
 
     def repr_class(self): # pragma: no cover
-        return "<" + self.__class__.__name__ + ">"
+        return self.__class__.__name__ + "()"
 
     def __len__(self): 
         return len(self.entries)
@@ -316,9 +391,11 @@ class AbstractNode(object):
             raise ValueError('Trying to add %s into a full node' % str(entry))
         self.entries.add(entry)
 
+    #TODO recomputes d(leaf, parent)!
     def set_entries_and_parent_entry(self, new_entries, new_parent_entry):
         self.entries = new_entries
         self.parent_entry = new_parent_entry
+        self.parent_entry.radius = self.covering_radius_for(self.parent_entry.obj)
         self._update_entries_distance_to_parent()
 
     #wastes d computations if parent hasn't changed.
@@ -335,10 +412,14 @@ class AbstractNode(object):
         """Add obj into this subtree"""
         pass
 
-    @abc.abstractmethod
+    @abc.abstractmethod         
     def covering_radius_for(self, obj): # pragma: no cover
         """Compute the radius needed for obj to cover the entries of this node.
         """
+        pass
+
+    @abc.abstractmethod
+    def search(self, query_obj, pr, nn):
         pass
         
 
@@ -375,7 +456,32 @@ class LeafNode(AbstractNode):
             return 0
         else:
             return max(map(lambda e: self.d(obj, e.obj), self.entries))
+
+    def could_contain_results(self,
+                              query_obj,
+                              search_radius,
+                              distance_to_parent):
+        """Determines without any d computation if there could be
+        objects in the subtree belonging to the result.
+        """
+        if self.is_root():
+            return True
         
+        parent_obj = self.parent_entry.obj
+        #d already computed before when treating a parent node but still
+        #recomputed :(
+        return abs(self.d(parent_obj, query_obj) - distance_to_parent)\
+                <= search_radius
+        
+    def search(self, query_obj, pr, nn):
+        for entry in self.entries:
+            if self.could_contain_results(query_obj,
+                                          nn.search_radius(),
+                                          entry.distance_to_parent):
+                distance_entry_to_q = self.d(entry.obj, query_obj)
+                if distance_entry_to_q <= nn.search_radius():
+                    nn.update(entry.obj, distance_entry_to_q)
+                    #should remove from pr
     
 class InternalNode(AbstractNode):
     """An internal node of the M-tree"""
@@ -440,9 +546,47 @@ class InternalNode(AbstractNode):
                                                   new_parent_entry)
         for entry in self.entries:
             entry.subtree.parent_node = self
+
+    def could_contain_results(self,
+                              query_obj,
+                              search_radius,
+                              entry):
+        """Determines without any d computation if there could be
+        objects in the subtree belonging to the result.
+        """
+        if self.is_root():
+            return True
         
+        parent_obj = self.parent_entry.obj
+        #d already computed before when treating a parent node but still
+        #recomputed :(
+        return abs(self.d(parent_obj, query_obj) - entry.distance_to_parent)\
+                <= search_radius + entry.radius
+            
+    def search(self, query_obj, pr, nn):
+        for entry in self.entries:
+            #computes d instead of reusing the previous computation :(
+            if self.could_contain_results(query_obj,
+                                          nn.search_radius(),
+                                          entry):
+            
+                entry_dmin = max(self.d(entry.obj, query_obj) - \
+                                     entry.radius, 0)
+                if entry_dmin <= nn.search_radius():
+                    heappush(pr, PrEntry(entry.subtree, entry_dmin))
+                    #d has already been computed
+                    entry_dmax = self.d(entry.obj, query_obj) + entry.radius
+                    if entry_dmax < nn.search_radius():
+                        nn.update(None, entry_dmax)
+                        #should remove from pr entries whose dmin is
+                        #bigger than search_radius
+                        #calls the NN Update function (not specified here) to 
+                        #perform an ordered insertion in the NN array and 
+                        #receives back a (possibly new) value of dk. 
+                        #This is then used to remove from PR all sub-trees for
+                        #which the dmin lower bound exceeds dk.
 
-
+                        
 #A lot of the code is duplicated to do the same operation on the existing_node
 #and the new node :(. Could prevent that by creating a set of two elements and
 #perform on the (two) elements of that set.
@@ -462,6 +606,7 @@ def split(existing_node, entry, d):
            value (the distance to existing_node.parent_entry).
     d: distance function.
     """
+    assert existing_node.is_full()
     mtree = existing_node.mtree
     #type of the new node must be the same as existing_node
     #parent node, parent entry and entries are set later
@@ -495,10 +640,19 @@ def split(existing_node, entry, d):
     #      try both way
     #    add a function to add value without computing them
     #      (to add distance_to_parent)
-    existing_node_entry = build_entry(existing_node, routing_object1)
+
+    #TODO: build_entry in the node method?
+    existing_node_entry = Entry(routing_object1,
+                                None,#distance_to_parent set later
+                                None,#covering_radius set later
+                                existing_node)    
     existing_node.set_entries_and_parent_entry(entries1,
                                                existing_node_entry)
-    new_node_entry = build_entry(new_node, routing_object2)
+
+    new_node_entry = Entry(routing_object2, 
+                           None,
+                           None,
+                           new_node)
     new_node.set_entries_and_parent_entry(entries2,
                                           new_node_entry)
                                           
@@ -536,19 +690,24 @@ def split(existing_node, entry, d):
     assert new_node.is_root() or new_node.parent_node
         
 
-def build_entry(node, routing_object, distance_to_parent=None):
-    """Return a new entry whose covering tree is node and
-    the routing object is routing_object
-    """
-    covering_radius = node.covering_radius_for(routing_object)
-    return Entry(routing_object,
-                 distance_to_parent,
-                 covering_radius,
-                 node)
+# def build_entry(node, routing_object, distance_to_parent=None):
+#     """Return a new entry whose covering tree is node and
+#     the routing object is routing_object
+#     """
+#     covering_radius = node.covering_radius_for(routing_object)
+#     return Entry(routing_object,
+#                  distance_to_parent,
+#                  covering_radius,
+#                  node)
 
 if __name__ == '__main__':  # pragma: no cover
-    for max_size in range(2, 20) + [1000]:
-        tree = MTree(lambda i1, i2: abs(i1 - i2), max_size)
-        objs = range(5000)
-        for o in objs:
-            tree.add(o)
+    binary_tree = MTree(lambda i1, i2: abs(i1 - i2), max_node_size=2)
+    binary_tree.add_all(range(3))
+    print binary_tree.search(20, 3)
+
+
+    # for max_size in range(2, 4) + [1000]:
+    #     tree = MTree(lambda i1, i2: abs(i1 - i2), max_size)
+    #     objs = range(2000)
+    #     for o in objs:
+    #         tree.add(o)
