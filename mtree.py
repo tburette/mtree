@@ -1,9 +1,3 @@
-#TODO: doc talk about duplicate obj (same object or object with d(x, y) = 0).
-# Do not check and allow duplicates in the tree.
-#  verify it is true + say so in docstring
-#TODO: doc exemple (string, image,...)
-#TODO: doc usage and example
-#TODO: use doctest
 """Datastructure to search for elements that are the most similar to a query.
 
 This is an implementation of the M-tree. M-tree is a data structure to find the element(s) the most similar to a given one.
@@ -64,6 +58,9 @@ The distance function MUST respect the following properties:
 
 If the distance function violates one of these rule, the M-tree may
 return erroneous results. 
+
+If the same object is inserted multiple times, it will be considered as
+different object by the tree.
 
 This implementation is memory only. The tree is not stored on disk.
 This may be a problem if the objects you store are large (pictures, sound,...)
