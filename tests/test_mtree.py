@@ -97,6 +97,10 @@ class MTreeAdd(unittest.TestCase):
         self.assertEqual(tree_len(tree), 5)
         self.assertEqual(sorted(tree_objs(tree)), [1, 1, 2, 3, 10])
 
+    def test_add2(self):
+        tree = MTree(lambda i1, i2: abs(i1 - i2))
+        tree.add_all(range(34))
+
     def test_add_with_split(self):
         max_sizes = [2, 3, 4, 99]
         for max_size in max_sizes:

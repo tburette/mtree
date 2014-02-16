@@ -77,9 +77,7 @@ Implementation based on the paper
 'M-tree: An Efficient Access Method for Similarity Search in Metric Spaces'.
 
 """
-#infinity? (cf k-NN search)
-#add a nearest neighbor function (implemented in term of k-NN)
-#little tool to check that d is valid
+#TODO little tool to check that d is valid
 
 __all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed',
            'generalized_hyperplane']
@@ -223,7 +221,7 @@ class MTree(object):
 
         #priority queue of subtrees not yet explored ordered by dmin
         pr = []
-        heappush(pr, PrEntry(self.root, 0))
+        heappush(pr, PrEntry(self.root, 0, 0))
 
         #at the end will contain the results 
         nn = NN(k)
@@ -234,11 +232,11 @@ class MTree(object):
             #pr could get big!
             #if(prEntry.d > nn.search_radius()):
             #    break
-            prEntry.tree.search(query_obj, pr, nn)
+            prEntry.tree.search(query_obj, pr, nn, prEntry.d_query)
             #pruning
             #the paper prunes after each entry insertion
             #instead whe prune once after handling all the entries of a node
-            pr = [entry for entry in pr if entry.d <= nn.search_radius()]
+            pr = [entry for entry in pr if entry.dmin <= nn.search_radius()]
             
         return nn.result_list()
 
@@ -283,12 +281,21 @@ class NN(object):
             
 
 class PrEntry(object):
-    def __init__(self, tree, d):
+    def __init__(self, tree, dmin, d_query):
+        """
+        Constructor.
+
+        arguments:
+        d_query: distance d to searched query object
+        """
         self.tree = tree
-        self.d = d
+        #dmin and d_to_q are somewhat redundant
+        #keep dmin for fast ordered queue
+        self.dmin = dmin
+        self.d_query = d_query
 
     def __lt__(self, other):
-        return self.d < other.d
+        return self.dmin < other.dmin
 
     def __repr__(self):
         return "PrEntry(tree:%r, d:%r)" % (self.tree, self.d)
@@ -430,7 +437,7 @@ class AbstractNode(object):
         pass
 
     @abc.abstractmethod
-    def search(self, query_obj, pr, nn):
+    def search(self, query_obj, pr, nn, d_parent_query):
         pass
         
 
@@ -471,24 +478,23 @@ class LeafNode(AbstractNode):
     def could_contain_results(self,
                               query_obj,
                               search_radius,
-                              distance_to_parent):
+                              distance_to_parent, 
+                              d_parent_query):
         """Determines without any d computation if there could be
         objects in the subtree belonging to the result.
         """
         if self.is_root():
             return True
         
-        parent_obj = self.parent_entry.obj
-        #d already computed before when treating a parent node but still
-        #recomputed :(
-        return abs(self.d(parent_obj, query_obj) - distance_to_parent)\
+        return abs(d_parent_query - distance_to_parent)\
                 <= search_radius
         
-    def search(self, query_obj, pr, nn):
+    def search(self, query_obj, pr, nn, d_parent_query):
         for entry in self.entries:
             if self.could_contain_results(query_obj,
                                           nn.search_radius(),
-                                          entry.distance_to_parent):
+                                          entry.distance_to_parent,
+                                          d_parent_query):
                 distance_entry_to_q = self.d(entry.obj, query_obj)
                 if distance_entry_to_q <= nn.search_radius():
                     nn.update(entry.obj, distance_entry_to_q)
@@ -560,7 +566,8 @@ class InternalNode(AbstractNode):
     def could_contain_results(self,
                               query_obj,
                               search_radius,
-                              entry):
+                              entry,
+                              d_parent_query):
         """Determines without any d computation if there could be
         objects in the subtree belonging to the result.
         """
@@ -568,24 +575,21 @@ class InternalNode(AbstractNode):
             return True
         
         parent_obj = self.parent_entry.obj
-        #d already computed before when treating a parent node but still
-        #recomputed :(
-        return abs(self.d(parent_obj, query_obj) - entry.distance_to_parent)\
+        return abs(d_parent_query - entry.distance_to_parent)\
                 <= search_radius + entry.radius
             
-    def search(self, query_obj, pr, nn):
+    def search(self, query_obj, pr, nn, d_parent_query):
         for entry in self.entries:
-            #computes d instead of reusing the previous computation :(
             if self.could_contain_results(query_obj,
                                           nn.search_radius(),
-                                          entry):
-            
-                entry_dmin = max(self.d(entry.obj, query_obj) - \
+                                          entry,
+                                          d_parent_query):
+                d_entry_query = self.d(entry.obj, query_obj)
+                entry_dmin = max(d_entry_query - \
                                      entry.radius, 0)
                 if entry_dmin <= nn.search_radius():
-                    heappush(pr, PrEntry(entry.subtree, entry_dmin))
-                    #d has already been computed
-                    entry_dmax = self.d(entry.obj, query_obj) + entry.radius
+                    heappush(pr, PrEntry(entry.subtree, entry_dmin, d_entry_query))
+                    entry_dmax = d_entry_query + entry.radius
                     if entry_dmax < nn.search_radius():
                         nn.update(None, entry_dmax)
                         
