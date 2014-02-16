@@ -14,7 +14,7 @@ Usage:
 >>> def d_int(x, y):      # define a distance function for numbers
 ...     return abs(x - y)
 ...
->>> tree = MTree(d_int)   # create an empty M-tree
+>>> tree = MTree(d_int, max_node_size=4)   # create an empty M-tree
 >>> tree.add(1)           # add objects 1, 5 and 9 to the tree
 >>> tree.add_all([5, 9])
 >>> tree.search(10)       # search the object closest to 10. Will return 9
@@ -22,6 +22,8 @@ Usage:
 >>> tree.search(9, 2)     # search the two objects closest to 9.
 >>> [5, 9]
 
+The size of nodes (max_node_size) have a large influence on the
+number of calls of the distance function (d).
 
 The objects you insert in the tree can be anything as long as the
 distance function you provide is able to handle them corretly.
@@ -144,12 +146,10 @@ def generalized_hyperplane(entries, routing_object1, routing_object2, d):
     return partition
 
 
-#TODO: node size : 32 is arbitrary. Define a reasonable default value
-#make a few tests and count number of call to d (hint: decorate d)
 class MTree(object):
     def __init__(self,
                  d,
-                 max_node_size=32,
+                 max_node_size=4,
                  promote=M_LB_DIST_confirmed,
                  partition=generalized_hyperplane):
         """
@@ -630,7 +630,7 @@ def split(existing_node, entry, d):
                                          routing_object1,
                                          routing_object2,
                                          d)
-    assert entries1 and entries2, "Error during split operation. All the entries have been assigned to one routing_objects and none to the other! Should never happen since at least the routing objects are assigned to there corresponding set  of entries"
+    assert entries1 and entries2, "Error during split operation. All the entries have been assigned to one routing_objects and none to the other! Should never happen since at least the routing objects are assigned to their corresponding set of entries"
     
     #must save the old entry of the existing node because it will have
     #to be removed from the parent node later
