@@ -4,3 +4,4 @@
 .ropeproject
 */.ropeproject
 .coverage
+env/
