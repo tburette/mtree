@@ -428,14 +428,14 @@ class TestGeneralizedHyperplane(unittest.TestCase):
                           obj1=1, assigned1=set([1, 3]),
                           obj2=7, assigned2=set([5, 7])),
             #all in one set
-            PartitionData(node=make_leaf_node(d_int, [1, 2, 3, 4, 5]),
+            PartitionData(node=make_leaf_node(d_int, [1, 2, 3, 4, 5], 5),
                           obj1=1, assigned1=set([1, 2, 3, 4, 5]),
                           obj2=50, assigned2=set([])),
-            PartitionData(node=make_leaf_node(d_int, [1, 2, 3, 4, 5]),
+            PartitionData(node=make_leaf_node(d_int, [1, 2, 3, 4, 5], 5),
                           obj1=-10, assigned1=set([]),
                           obj2=1, assigned2=set([1, 2, 3, 4, 5])),
             #routing objects are not in the entries
-            PartitionData(node=make_leaf_node(d_int, [1, 2, 3, 4, 5, 6]),
+            PartitionData(node=make_leaf_node(d_int, [1, 2, 3, 4, 5, 6], 6),
                           obj1=0, assigned1=set([1, 2, 3]),
                           obj2=7, assigned2=set([4, 5, 6])),
             #empty
