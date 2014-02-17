@@ -79,7 +79,6 @@ Implementation based on the paper
 'M-tree: An Efficient Access Method for Similarity Search in Metric Spaces'.
 
 """
-#TODO little tool to check that d is valid
 
 __all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed',
            'generalized_hyperplane']
@@ -107,7 +106,6 @@ def M_LB_DIST_confirmed(entries, current_routing_entry, d):
     None if the node from which the entries come from is the root.
     d: distance function.
     """
-    #performance hit of the any?
     if current_routing_entry is None or \
             any(e.distance_to_parent is None for e in entries):
         return M_LB_DIST_non_confirmed(entries,
@@ -696,24 +694,7 @@ def split(existing_node, entry, d):
     assert new_node.is_root() or new_node.parent_node
         
 
-# def build_entry(node, routing_object, distance_to_parent=None):
-#     """Return a new entry whose covering tree is node and
-#     the routing object is routing_object
-#     """
-#     covering_radius = node.covering_radius_for(routing_object)
-#     return Entry(routing_object,
-#                  distance_to_parent,
-#                  covering_radius,
-#                  node)
-
 if __name__ == '__main__':  # pragma: no cover
     binary_tree = MTree(lambda i1, i2: abs(i1 - i2), max_node_size=2)
     binary_tree.add_all(range(3))
     print binary_tree.search(20, 3)
-
-
-    # for max_size in range(2, 4) + [1000]:
-    #     tree = MTree(lambda i1, i2: abs(i1 - i2), max_size)
-    #     objs = range(2000)
-    #     for o in objs:
-    #         tree.add(o)
