@@ -692,9 +692,3 @@ def split(existing_node, entry, d):
             new_node.parent_node = parent_node
     assert existing_node.is_root() or existing_node.parent_node
     assert new_node.is_root() or new_node.parent_node
-        
-
-if __name__ == '__main__':  # pragma: no cover
-    binary_tree = MTree(lambda i1, i2: abs(i1 - i2), max_node_size=2)
-    binary_tree.add_all(range(3))
-    print binary_tree.search(20, 3)
