@@ -1,40 +1,46 @@
-"""Datastructure to search for elements that are the most similar to a query.
-
-This is an implementation of the M-tree. M-tree is a data structure to find the element(s) the most similar to a given one.
+"""M-tree datastructure to perform k-NN searches
+===
+This is an implementation of the M-tree, a data structure to find the element(s) the most similar to a given one.
 
 The M-tree is a tree based implementation of the concept of metric space
 ( http://en.wikipedia.org/wiki/Metric_space ), it is similar to b-tree.
 
+Implementation based on the paper
+'M-tree: An Efficient Access Method for Similarity Search in Metric Spaces'
+
 To use the M-tree you only need to pass two things to it:
--a set of objects to store.
--a distance function ( d(x, y) ) that returns a number establishing
+
+- a set of objects to store.
+- a distance function `d(x, y)` that returns a number establishing
 how similar two objects are.
 
 Usage:
->>> def d_int(x, y):      # define a distance function for numbers
-...     return abs(x - y)
-...
->>> tree = MTree(d_int, max_node_size=4)   # create an empty M-tree
->>> tree.add(1)           # add objects 1, 5 and 9 to the tree
->>> tree.add_all([5, 9])
->>> tree.search(10)       # search the object closest to 10. Will return 9
->>> [9]
->>> tree.search(9, 2)     # search the two objects closest to 9.
->>> [5, 9]
+======
+    >>> def d_int(x, y):      # define a distance function for numbers
+    ...     return abs(x - y)
+    ...
+    >>> tree = MTree(d_int, max_node_size=4)   # create an empty M-tree
+    >>> tree.add(1)           # add objects 1, 5 and 9 to the tree
+    >>> tree.add_all([5, 9])
+    >>> tree.search(10)       # search the object closest to 10. Will return 9
+    >>> [9]
+    >>> tree.search(9, 2)     # search the two objects closest to 9.
+    >>> [5, 9]
 
-The size of nodes (max_node_size) have a large influence on the
-number of calls of the distance function (d).
+The size of nodes (optional argument `max_node_size`) has a large influence on 
+the number of calls of the distance function (`d`).
 
 The objects you insert in the tree can be anything as long as the
 distance function you provide is able to handle them corretly.
 
-The distance function (d) must be provided when the tree is created.
+The distance function (`d`) must be provided when the tree is created.
 It takes as a parameter two objects and return an number telling how
 similar the two objects are. The smaller the number, the more similar the
 objects are. The number returned can be an integer, float,... Technically
 anything that behaves like a number (<, <=, >,... work like numbers).
 
 The distance function MUST respect the following properties:
+
 - d always return the same value given the same parameters
 - Non negativity: forall x, y: d(x, y) >= 0
   d must never return a negative value. If the value your function returns
@@ -45,8 +51,6 @@ The distance function MUST respect the following properties:
   The same value must be returned no matter what the order of the parameters
   are.
 - Identity: forall x, y: d(x, y) = 0 means that x = y
-  I'm not sure what would happen if you add two different object whose distance
-  is zero. Likewise for inserting multiple times the same object.
 - Triangle inequality: forall x, y, z d(x, z) <= d(x, y) + d(y, z)
   The distance from one point to a second is always smaller or equal to the
   the distance from one point to an intermediary + the distance from the
@@ -69,14 +73,12 @@ This may be a problem if the objects you store are large (pictures, sound,...)
 Altough the tree itself resides in memory you can store the objects it contains on disk (or online,...). For example the objects you pass to the tree could
 be path to files; the d function would load the files from disk to perform the
 comparisons.
+
 To maintain good performance while minimizing memory usage, a good trade-off
 is to store in the objects only the path to the actual data as well as the key
 features that define the data. The distance function (d) can then compare
 the objects using the features without the need for disk access
 That way, searches are fast (no disk access) while keeping data on disk.
-
-Implementation based on the paper
-'M-tree: An Efficient Access Method for Similarity Search in Metric Spaces'.
 
 """
 
