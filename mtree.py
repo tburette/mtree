@@ -85,6 +85,8 @@ That way, searches are fast (no disk access) while keeping data on disk.
 __all__ = ['MTree', 'M_LB_DIST_confirmed', 'M_LB_DIST_non_confirmed',
            'generalized_hyperplane']
 
+__version__ = '1.0.0'
+
 import abc
 from heapq import heappush, heappop
 import collections
