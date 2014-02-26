@@ -1,2 +1,3 @@
 * big gap in unit test coverage
   was too focused on loew level, algorithm tests and not actual high-level tests
+* python 3 compatible
