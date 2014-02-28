@@ -21,3 +21,5 @@ var/
 *.egg
 
 .tox
+
+docs/_build
