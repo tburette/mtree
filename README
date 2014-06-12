@@ -85,3 +85,5 @@ is to store in the objects only the path to the actual data as well as the key
 features that define the data. The distance function (d) can then compare
 the objects using the features without the need for disk access
 That way, searches are fast (no disk access) while keeping data on disk.
+
+Compatible Python 2 and 3.
