@@ -1,5 +1,8 @@
 M-tree datastructure to perform k-NN searches
 =============================================
+
+[![Build Status](https://travis-ci.org/tburette/mtree.svg?branch=master)](https://travis-ci.org/tburette/mtree)
+
 This is an implementation of the M-tree, a data structure to find the element(s) the most similar to a given one.
 
 The M-tree is a tree based implementation of the concept of metric space
