@@ -1,4 +1,8 @@
-import unittest
+#python < 2.7 compatibility
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 import collections
 #import both way because I want to access the public elements of the module
 #without the mtree. prefix while also being able to access non public elements.
