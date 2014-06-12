@@ -4,6 +4,7 @@ try:
 except ImportError:
     import unittest
 import collections
+from functools import reduce
 #import both way because I want to access the public elements of the module
 #without the mtree. prefix while also being able to access non public elements.
 from mtree import *
@@ -67,7 +68,7 @@ def node_objs(node):
             result.extend(node_objs(n.subtree))
         return result
     else:
-        return map(lambda e: e.obj, node.entries)
+        return list(map(lambda e: e.obj, node.entries))
 
 def tree_objs(tree):
     """Returns all the objects of the tree"""
@@ -113,7 +114,7 @@ class MTreeAdd(unittest.TestCase):
             for o in objs:
                 tree.add(o)
             self.assertEqual(len(tree), 100)
-            self.assertEqual(sorted(tree_objs(tree)), range(100))
+            self.assertEqual(sorted(tree_objs(tree)), list(range(100)))
         
     def test_add_all(self):
         tree = MTree(d_id)
@@ -238,11 +239,11 @@ class TestInternalNode(unittest.TestCase):
                                                     [],
                                                     routing_obj2,
                                                     [])
-        entry1 = (e for e in internal.entries \
-                     if e.obj == routing_obj1).next()
+        entry1 = next((e for e in internal.entries \
+                     if e.obj == routing_obj1))
         leaf1 = entry1.subtree
-        entry2 = (e for e in internal.entries \
-                     if e.obj == routing_obj2).next()
+        entry2 = next((e for e in internal.entries \
+                     if e.obj == routing_obj2))
         leaf2 = entry2.subtree
         
         internal.add(9)
@@ -291,7 +292,7 @@ class TestSplit(unittest.TestCase):
             self.assertFalse(e.subtree is None)
         def leafs(entries):
             g = (e for e in entries)
-            return (g.next().subtree, g.next().subtree)
+            return (next(g).subtree, next(g).subtree)
         leaf1, leaf2 = leafs(internal.entries)
         self.assertTrue(leaf == leaf1 or leaf == leaf2)
         self.assertTrue(isinstance(leaf1, mtree.LeafNode))

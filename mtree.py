@@ -128,7 +128,7 @@ def M_LB_DIST_non_confirmed(entries, unused_current_routing_entry, d):
     the furthest apart.
     """
     objs = map(lambda e: e.obj, entries)
-    return max(combinations(objs, 2), key=lambda (x, y): d(x, y))
+    return max(combinations(objs, 2), key=lambda two_objs: d(*two_objs))
 
 #If the routing objects are not in entries it is possible that
 #all the elements are in one set and the other set is empty.
@@ -530,9 +530,8 @@ class InternalNode(AbstractNode):
             dist_to_obj[entry] = self.d(obj, entry.obj)
 
         def find_best_entry_requiring_no_covering_radius_increase():
-            valid_entries = filter(lambda e : dist_to_obj[e] <= e.radius,
-                                   self.entries)
-            
+            valid_entries = [e for e in self.entries
+                             if dist_to_obj[e] <= e.radius]
             return min(valid_entries, key=dist_to_obj.get) \
                 if valid_entries else None
                 
