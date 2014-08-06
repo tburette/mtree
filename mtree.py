@@ -308,7 +308,7 @@ class PrEntry(object):
         return self.dmin < other.dmin
 
     def __repr__(self):
-        return "PrEntry(tree:%r, d:%r)" % (self.tree, self.d)
+        return "PrEntry(tree:%r, dmin:%r)" % (self.tree, self.dmin)
 
     
 class Entry(object):
