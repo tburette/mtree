@@ -1,3 +1,6 @@
 * big gap in unit test coverage
-  was too focused on loew level, algorithm tests and not actual high-level tests
+  was too focused on low level, algorithm tests and not actual high-level tests
 * upload sphinx doc online
+* mtree.search('x') returns an array with the result instead of the result.
+  change API?
+* a way to list the elements [x for x in mtree]
