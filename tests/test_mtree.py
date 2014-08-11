@@ -142,9 +142,9 @@ class TestAbstractNode(unittest.TestCase):
     AbstractNode. I cheat by testing abstractNode methods through Leaf only."""
     def test_init(self):
         tree = MTree(d_int)
-        parent_node = mtree.InternalNode(d_int, tree)
+        parent_node = mtree.InternalNode(tree)
         parent_entry = mtree.Entry(1)
-        leaf = mtree.LeafNode(d_int, tree, parent_node, parent_entry, None)
+        leaf = mtree.LeafNode(tree, parent_node, parent_entry, None)
         self.assertEqual(leaf.d, d_int)
         self.assertEqual(leaf.mtree, tree)
         self.assertEqual(leaf.parent_node, parent_node)
@@ -223,7 +223,7 @@ class TestLeafNode(unittest.TestCase):
 class TestInternalNode(unittest.TestCase):
     def test_covering_radius_for(self):
         tree = MTree(d_int)
-        internal = mtree.InternalNode(d_int, tree)
+        internal = mtree.InternalNode(tree)
         internal.add_entry(mtree.Entry(1, None, 1))
         internal.add_entry(mtree.Entry(8, None, 2))
         self.assertEqual(internal.covering_radius_for(0), 10)
@@ -351,7 +351,7 @@ def make_leaf_and_internal_node(d, routing_object, leaf_objs=[]):
     tree = MTree(d)
     tree.size = len(leaf_objs)
     leaf = tree.root
-    internal = mtree.InternalNode(d, tree)
+    internal = mtree.InternalNode(tree)
     tree.root = internal
     leaf.parent_node = internal
     #entry of leaf in the root
@@ -374,7 +374,7 @@ def make_two_leaves_and_one_internal(d,
     tree = make_leaf_and_internal_node(d, routing1, leaf_objs1).mtree
     internal = tree.root
     entry2 = mtree.Entry(routing2)
-    leaf2 = mtree.LeafNode(d, tree, internal, entry2)
+    leaf2 = mtree.LeafNode(tree, internal, entry2)
     leaf2.entries = set(map(lambda o: mtree.Entry(o, d(o, routing2)),
                            leaf_objs2))
     entry2.subtree = leaf2

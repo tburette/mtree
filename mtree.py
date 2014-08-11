@@ -198,7 +198,7 @@ class MTree(object):
         self.promote = promote
         self.partition = partition
         self.size = 0
-        self.root = LeafNode(d, self)
+        self.root = LeafNode(self)
 
     def __len__(self):
         return self.size
@@ -358,7 +358,6 @@ class AbstractNode(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self,
-                 d,
                  mtree,
                  parent_node=None,
                  parent_entry=None,
@@ -367,7 +366,6 @@ class AbstractNode(object):
         #is empty and there only is an empty root.
         #May also be empty during construction (create empty node then add
         #the entries later).
-        self.d = d
         self.mtree = mtree
         self.parent_node = parent_node
         self.parent_entry = parent_entry
@@ -393,6 +391,10 @@ class AbstractNode(object):
 
     def __len__(self): 
         return len(self.entries)
+
+    @property
+    def d(self):
+        return self.mtree.d
 
     def is_full(self):
         return len(self) == self.mtree.max_node_size
@@ -454,14 +456,12 @@ class AbstractNode(object):
 class LeafNode(AbstractNode):
     """A leaf of the M-tree"""
     def __init__(self,
-                 d,
                  mtree,
                  parent_node=None,
                  parent_entry=None,
                  entries=None):
 
         AbstractNode.__init__(self,
-                              d,
                               mtree,
                               parent_node,
                               parent_entry,
@@ -513,14 +513,12 @@ class InternalNode(AbstractNode):
     """An internal node of the M-tree"""
 
     def __init__(self,
-                 d,
                  mtree,
                  parent_node=None,
                  parent_entry=None,
                  entries=None):
 
         AbstractNode.__init__(self,
-                              d,
                               mtree,
                               parent_node,
                               parent_entry,
@@ -625,8 +623,7 @@ def split(existing_node, entry, d):
     mtree = existing_node.mtree
     #type of the new node must be the same as existing_node
     #parent node, parent entry and entries are set later
-    new_node = type(existing_node)(existing_node.d,
-                                   existing_node.mtree)
+    new_node = type(existing_node)(existing_node.mtree)
     all_entries = existing_node.entries | set((entry,))
 
     #It is guaranteed that the current routing entry of the split node
@@ -672,8 +669,7 @@ def split(existing_node, entry, d):
                                           new_node_entry)
                                           
     if existing_node.is_root():
-        new_root_node = InternalNode(existing_node.d,
-                                existing_node.mtree)
+        new_root_node = InternalNode(existing_node.mtree)
 
         existing_node.parent_node = new_root_node
         new_root_node.add_entry(existing_node_entry)
