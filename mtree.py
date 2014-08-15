@@ -225,7 +225,7 @@ class MTree(object):
         Returns a list of the k closest elements to query_obj, ordered by
         distance to query_obj (from closest to furthest).
         If the tree has less objects than k, it will return all the
-        elements of the array."""
+        elements of the tree."""
         k = min(k, len(self))
         if k == 0: return []
 
