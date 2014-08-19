@@ -238,15 +238,15 @@ class MTree(object):
 
         while pr:
             prEntry = heappop(pr)
-            #do not prune but stop when needed
-            #pr could get big!
-            #if(prEntry.d > nn.search_radius()):
-            #    break
+            if(prEntry.dmin > nn.search_radius()):
+                #best candidate is too far, we won't have better a answer
+                #we can stop
+                break
             prEntry.tree.search(query_obj, pr, nn, prEntry.d_query)
-            #pruning
-            #the paper prunes after each entry insertion
-            #instead whe prune once after handling all the entries of a node
-            pr = [entry for entry in pr if entry.dmin <= nn.search_radius()]
+
+            #could prune pr here
+            #(the paper prunes after each entry insertion, instead whe could
+            #prune once after handling all the entries of a node)
             
         return nn.result_list()
 
