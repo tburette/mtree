@@ -299,8 +299,6 @@ class PrEntry(object):
         d_query: distance d to searched query object
         """
         self.tree = tree
-        #dmin and d_to_q are somewhat redundant
-        #keep dmin for fast ordered queue
         self.dmin = dmin
         self.d_query = d_query
 
