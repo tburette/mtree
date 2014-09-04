@@ -150,8 +150,8 @@ def generalized_hyperplane(entries, routing_object1, routing_object2, d):
         #all objects have been put on the same routing_object
         #can only happen if all objects are the same point (d() always 0)
         #fix by splitting the group in two
-        partition = (set(islice(entries, len(entries)/2)),
-                     set(islice(entries, len(entries)/2, len(entries))))
+        partition = (set(islice(entries, len(entries)//2)),
+                     set(islice(entries, len(entries)//2, len(entries))))
 
     return partition
 
