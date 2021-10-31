@@ -1,9 +1,9 @@
-M-tree datastructure to perform k-NN searches
+M-tree data structure to perform k-NN searches
 =============================================
 
 [![Build Status](https://travis-ci.org/tburette/mtree.svg?branch=master)](https://travis-ci.org/tburette/mtree)
 
-This is an implementation of the M-tree, a data structure to find the element(s) the most similar to a given one.
+This is an implementation of the M-tree, a data structure to find the element(s) the most similar to a given element.
 
 The M-tree is a tree based implementation of the concept of metric space
 ( http://en.wikipedia.org/wiki/Metric_space ), it is similar to b-tree.
@@ -23,8 +23,8 @@ Usage:
     ...     return abs(x - y)
     ...
     >>> tree = MTree(d_int, max_node_size=4)   # create an empty M-tree
-    >>> tree.add(1)           # add objects 1, 5 and 9 to the tree
-    >>> tree.add_all([5, 9])
+    >>> tree.add(1)           # add object 1 to the tree
+    >>> tree.add_all([5, 9])  # add objects 5 and 9
     >>> tree.search(10)       # search the object closest to 10. Will return 9
     >>> [9]
     >>> tree.search(9, 2)     # search the two objects closest to 9.
@@ -34,13 +34,13 @@ The size of nodes (optional argument `max_node_size`) has a large influence on
 the number of calls of the distance function (`d`).
 
 The objects you insert in the tree can be anything as long as the
-distance function you provide is able to handle them corretly.
+distance function you provide is able to handle them correctly.
 
 The distance function (`d`) must be provided when the tree is created.
-It takes as a parameter two objects and return an number telling how
+It takes as a parameter two objects and return a number telling how
 similar the two objects are. The smaller the number, the more similar the
 objects are. The number returned can be an integer, float,... Technically
-anything that behaves like a number (<, <=, >,... work like numbers).
+anything that behaves like a number (<, <=, >,...).
 
 The distance function MUST respect the following properties:
 
@@ -59,7 +59,7 @@ The distance function MUST respect the following properties:
   the distance from one point to an intermediary + the distance from the
   intermediary to the second point.
   Here is an analogy to help understand this property. Imagine a road
-  going directlty between two towns. It never turns, it is a perfectly
+  going directly between two towns. It never turns, it is a perfectly
   straight line. This is obviously the shortest way to get between the two
   town. Now imagine we pick a position anywhere we want. If we go from
   one town to the other by passing trough this position, it is impossible to
@@ -76,7 +76,7 @@ Notes
 
 This implementation is memory only. The tree is not stored on disk.
 This may be a problem if the objects you store are large (pictures, sound,...)
-Altough the tree itself resides in memory you can store the objects it contains on disk (or online,...). For example the objects you pass to the tree could
+Although the tree itself resides in memory you can store the objects it contains on disk (or online,...). For example the objects you pass to the tree could
 be path to files; the d function would load the files from disk to perform the
 comparisons.
 
